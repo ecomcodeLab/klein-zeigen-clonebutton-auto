@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name          Kleinanzeigen Auto Clone Bot
 // @namespace     https://github.com/ecomcodeLab/klein-zeigen-clonebutton-auto
-// @description   Einfaches Duplizieren, Smart Neu-Einstellen und automatische Rotation der aeltesten Anzeigen.
+// @description   Einfaches Duplizieren, Smart Neu-Einstellen und automatische Rotation der aeltesten Anzeigen. Inklusive Popup-Blocker.
 // @icon          http://www.google.com/s2/favicons?domain=www.kleinanzeigen.de
 // @copyright     2026
 // @license       MIT
-// @version       6.7.0
+// @version       6.9.0
 // @author        OldRon1977, ecomcodeLab
 // @credits       Original-Script: J05HI https://github.com/J05HI
 // @credits       Erweiterte Version: OldRon1977 https://github.com/OldRon1977
@@ -49,10 +49,7 @@
   // ============================================================
   const CONFIG = {
     NOTIFICATION_TIMEOUT_MS: 4000,
-    DELETE_REQUEST_TIMEOUT_MS: 10000,
-    DELETE_WAIT_BEFORE_CREATE_MS: 3000,
-    INITIAL_RETRY_WAIT_MS: 1000,
-    MAX_BUTTON_RETRIES: 5
+    INITIAL_RETRY_WAIT_MS: 1000
   };
 
   let settings = {
@@ -128,7 +125,7 @@
   // API ACTIONS (Löschen)
   // ============================================================
   async function deleteAd(adId) {
-    console.log('[KA-Bot] Lösche Anzeige:', adId);
+    console.log('[KA-Bot] Lösche Original-Anzeige:', adId);
     let token = getCsrfToken();
     if (!token) throw new Error('CSRF Token nicht gefunden');
 
@@ -145,18 +142,54 @@
   }
 
   // ============================================================
-  // BOT ACTIONS (Duplizieren / Smart)
+  // POPUP CLOSER
+  // ============================================================
+  function closePromoPopups() {
+    let btns = Array.from(document.querySelectorAll('button, a'));
+    let closeBtn = btns.find(b => {
+      let text = b.textContent.toLowerCase();
+      return text.includes('ohne hochschieben') || text.includes('überspringen');
+    });
+
+    // Fallback für Standard "X" Close-Buttons bei offenen Modals
+    if (!closeBtn && document.querySelector('.modal-open, .m-modal, dialog[open]')) {
+      closeBtn = document.querySelector('.mfp-close, .modal-close, button[aria-label="Schließen"], .j-modal-close');
+    }
+
+    if (closeBtn) {
+      console.log("[KA-Bot] Promo-Popup erkannt und wird geschlossen...");
+      closeBtn.click();
+    }
+  }
+
+  // ============================================================
+  // BOT ACTIONS (Copy First, Delete After)
   // ============================================================
   async function duplicateAd() {
-    showSpinner(true);
-    showToast("Bereite Duplikat vor...");
+    // Nur duplizieren: Markiere KEINE AdId zum Löschen
+    setVal('pendingDeleteAdId', null);
+    await performDuplicate("Bereite Duplikat vor...");
+  }
+
+  async function smartRepublish() {
+    let m = window.location.search.match(/adId=(\d+)/);
+    if (m) {
+      // Original-ID merken, damit sie auf der Erfolgsseite gelöscht werden kann
+      setVal('pendingDeleteAdId', m[1]); 
+    }
+    await performDuplicate("Smart: Erstelle Kopie...");
+  }
+
+  async function performDuplicate(spinnerText) {
+    showSpinner(true, spinnerText);
     let saveBtn = await waitForElement(findSaveButton);
     if (!saveBtn) {
       showToast("Speichern-Button nicht gefunden", "error");
       showSpinner(false);
       return;
     }
-    // ID entfernen um Neu-Erstellung zu erzwingen
+    
+    // ID entfernen um Neu-Erstellung als Kopie zu erzwingen
     let idInput = document.querySelector('input[name="adId"], #postad-id');
     if (idInput) {
       idInput.removeAttribute('name');
@@ -164,22 +197,9 @@
     }
     await delay(1000);
     saveBtn.click();
-  }
 
-  async function smartRepublish() {
-    showSpinner(true);
-    showToast("Lösche Original...");
-    let m = window.location.search.match(/adId=(\d+)/);
-    if (m) {
-      try {
-        await deleteAd(m[1]);
-        await delay(CONFIG.DELETE_WAIT_BEFORE_CREATE_MS);
-      } catch (e) {
-        console.error(e);
-        showToast("Löschen fehlgeschlagen, erstelle trotzdem neu", "error");
-      }
-    }
-    await duplicateAd();
+    // Starte aggressives Popup-Monitoring nach Klick auf Speichern
+    setInterval(closePromoPopups, 500);
   }
 
   // ============================================================
@@ -202,8 +222,10 @@
     .ka-banner h3 { margin: 0 0 10px; color: #a0a0ff; }
     .ka-cd { font-size: 40px; font-weight: bold; margin: 10px 0; }
     .ka-toast { position: fixed; top: 20px; right: 20px; background: #2980b9; color: #fff; padding: 10px 20px; border-radius: 5px; z-index: 11000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-    .ka-spinner { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10500; display: flex; align-items: center; justify-content: center; }
-    .ka-spinner-circle { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: ka-spin 1s linear infinite; }
+    
+    /* NON-BLOCKING SPINNER (Bottom Left) */
+    .ka-spinner { position: fixed; bottom: 20px; left: 20px; background: #1a1a2e; color: #fff; padding: 10px 15px; border-radius: 8px; border: 1px solid #3a3aaa; z-index: 10500; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-family: sans-serif; font-size: 13px; pointer-events: none; }
+    .ka-spinner-circle { width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: ka-spin 1s linear infinite; }
     @keyframes ka-spin { to { transform: rotate(360deg); } }
   `;
 
@@ -224,13 +246,13 @@
     setTimeout(() => t.remove(), CONFIG.NOTIFICATION_TIMEOUT_MS);
   }
 
-  function showSpinner(show) {
+  function showSpinner(show, text = "Arbeite...") {
     let ex = document.querySelector('.ka-spinner');
     if (ex) ex.remove();
     if (!show) return;
     let s = document.createElement('div');
     s.className = 'ka-spinner';
-    s.innerHTML = '<div class="ka-spinner-circle"></div>';
+    s.innerHTML = `<div class="ka-spinner-circle"></div><span>${text}</span>`;
     document.body.appendChild(s);
   }
 
@@ -287,7 +309,7 @@
 
     if (processed >= batchSize) {
       let pause = parseInt(getVal('batchPauseMin', 5));
-      showToast(`Batch-Limit erreicht. Pause f\u00fcr ${pause} Minuten...`);
+      showToast(`Batch-Limit erreicht. Pause für ${pause} Minuten...`);
       setVal('processedInBatch', 0);
       await delay(pause * 60 * 1000);
     }
@@ -314,23 +336,23 @@
 
     let pill = document.createElement('div');
     pill.id = 'ka-pill';
-    pill.textContent = "KA Bot \u25b6";
+    pill.textContent = "KA Bot ▶";
     pill.style.display = isMin ? 'block' : 'none';
 
     panel.innerHTML = `
       <div id="ka-ph">
         <span style="font-weight:bold; font-size:13px; color:#a0a0ff;">KA BOT</span>
-        <button id="ka-min" style="background:none; border:none; color:#fff; cursor:pointer; font-size:20px;">\u2212</button>
+        <button id="ka-min" style="background:none; border:none; color:#fff; cursor:pointer; font-size:20px;">−</button>
       </div>
       <div id="ka-pb">
         <div class="ka-row"><label>Warte (Tage)</label><input type="number" id="ka-in-days" class="ka-inp" value="${settings.waitDays}"></div>
         <div class="ka-row"><label>Anzahl Anzeigen</label><input type="number" id="ka-in-count" class="ka-inp" value="${settings.adCount}"></div>
-        <div class="ka-row"><label>Batch-Gr\u00f6\u00dfe</label><input type="number" id="ka-in-batch" class="ka-inp" value="${settings.batchSize}"></div>
+        <div class="ka-row"><label>Batch-Größe</label><input type="number" id="ka-in-batch" class="ka-inp" value="${settings.batchSize}"></div>
         <div class="ka-row"><label>Pause (Min)</label><input type="number" id="ka-in-pause" class="ka-inp" value="${settings.batchPauseMin}"></div>
         <div class="ka-row" style="grid-template-columns: 1fr 30px;"><label>Auto-Start</label><input type="checkbox" id="ka-in-auto" ${settings.autoStart ? 'checked' : ''}></div>
         <div class="ka-row" style="grid-template-columns: 1fr 30px;"><label>Alle erneuern</label><input type="checkbox" id="ka-in-all" ${settings.renewAll ? 'checked' : ''}></div>
         <hr style="border:0; border-top:1px solid #2d2d4e; margin:5px 0;">
-        <div style="font-size:11px; display:flex; justify-content:space-between;"><span>N\u00e4chster Run:</span><span id="ka-next-run">${getVal('nextRunDate', '-')}</span></div>
+        <div style="font-size:11px; display:flex; justify-content:space-between;"><span>Nächster Run:</span><span id="ka-next-run">${getVal('nextRunDate', '-')}</span></div>
         <button id="ka-start-btn" class="ka-btn ka-btn-blue">▶ Starten</button>
         <button id="ka-save-btn" class="ka-btn ka-btn-save">Einstellungen speichern</button>
       </div>
@@ -391,31 +413,49 @@
     if (isLoginPage()) return;
     injectStyles();
 
-    // 1. Check Hash Actions
-    if (window.location.hash === '#autoRepublish') {
-      await autoRepublishCurrent();
-      return;
-    }
-    if (window.location.hash === '#smartRepublish') {
+    // 1. Check Hash Actions (SmartNeu / AutoNeu)
+    if (window.location.hash === '#autoRepublish' || window.location.hash === '#smartRepublish') {
       await smartRepublish();
       return;
     }
 
     // 2. Success Page Handler
     if (isSuccessPage()) {
-      let q = JSON.parse(getVal('runQueue', '[]'));
-      if (q.length > 0 && getVal('isRunning', false)) {
-        runQueue = q;
-        await delay(3000);
-        processQueue();
+      showSpinner(true, "Anzeige ist online! Räume auf...");
+      
+      // Starte sofort die Überwachung für Popups auf der Erfolgsseite
+      let popupTimer = setInterval(closePromoPopups, 500);
+
+      // Lösche das Original (falls eine ID hinterlegt wurde)
+      let pendingDelete = getVal('pendingDeleteAdId', null);
+      if (pendingDelete) {
+         try {
+             await deleteAd(pendingDelete);
+         } catch(e) {
+             console.warn("Löschen der Originalanzeige fehlgeschlagen", e);
+         }
+         // ID wieder leeren, damit es nicht nochmal ausgeführt wird
+         setVal('pendingDeleteAdId', null);
       }
+
+      // 4 Sekunden stabilisieren lassen, dann zur nächsten Anzeige / Übersicht springen
+      setTimeout(async () => {
+        clearInterval(popupTimer); // Popup-Beobachter stoppen
+        
+        let q = JSON.parse(getVal('runQueue', '[]'));
+        if (q.length > 0 && getVal('isRunning', false)) {
+          processQueue();
+        } else {
+          setVal('isRunning', false);
+          window.location.href = 'https://www.kleinanzeigen.de/m-meine-anzeigen.html';
+        }
+      }, 4000);
       return;
     }
 
     // 3. UI building
     if (isOverviewPage()) {
       buildPanel();
-      // Add "Smart neu" buttons next to edit links
       setTimeout(() => {
         document.querySelectorAll('a[href*="p-anzeige-bearbeiten.html?adId="]').forEach(link => {
           if (link.dataset.kaBtn) return;
@@ -460,23 +500,6 @@
           }, "Auto-Start fällig");
         }, 3000);
       }
-    }
-  }
-
-  async function autoRepublishCurrent() {
-    showSpinner(true);
-    let m = window.location.search.match(/adId=(\d+)/);
-    if (m) {
-      try {
-        await deleteAd(m[1]);
-        await delay(2000);
-      } catch (e) { console.warn("Delete failed", e); }
-    }
-    let saveBtn = await waitForElement(findSaveButton);
-    if (saveBtn) {
-      let idInput = document.querySelector('input[name="adId"], #postad-id');
-      if (idInput) { idInput.removeAttribute('name'); idInput.value = ''; }
-      saveBtn.click();
     }
   }
 

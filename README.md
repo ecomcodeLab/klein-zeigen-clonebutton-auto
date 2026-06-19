@@ -4,43 +4,33 @@ Ein UserScript für Tampermonkey, das automatisches Neu-Einstellen, Duplizieren 
 
 ## Features
 
-- **Duplizieren:** Erstellt eine Kopie der Anzeige, Original bleibt erhalten
-- **Smart neu einstellen:** Löscht das Original und erstellt eine neue Anzeige
-- **Auto-Run:** Automatisches Neu-Einstellen mehrerer Anzeigen nach Zeitplan (Warte-Tage konfigurierbar)
+- **Copy First, Delete After:** Die Anzeige wird zuerst kopiert. Erst auf der Erfolgsseite wird die alte Anzeige gelöscht. So droht absolut kein Datenverlust.
+- **Automatischer Popup-Blocker:** "Ohne Hochschieben weiter"-Popups werden vollautomatisch im Hintergrund geschlossen.
+- **Non-Blocking UI:** Ein kleiner Spinner links unten zeigt den Arbeitsstatus an, blockiert aber nicht die Interaktion mit der Webseite.
+- **Duplizieren:** Erstellt eine Kopie der Anzeige, Original bleibt erhalten.
+- **Smart neu einstellen:** Löscht das Original und erstellt eine neue Anzeige.
+- **Auto-Run:** Automatisches Neu-Einstellen mehrerer Anzeigen nach Zeitplan (Warte-Tage konfigurierbar).
 - **Interaktiver Start-Countdown:** Sowohl beim Auto-Start als auch beim manuellen Start erscheint ein 10-Sekunden-Countdown-Banner mit **Abbrechen**-Option.
-- **Batch-Pause:** Nach konfigurierbarer Anzahl Anzeigen automatische Pause (Anti-Ban)
-- **Alle erneuern:** Checkbox um alle Anzeigen auf einmal neu einzustellen
-- **Minimier-Button:** Das Control Panel lässt sich minimieren — zeigt im minimierten Zustand den nächsten Run-Termin an
-- **Inline-Buttons:** „Smart neu einstellen“-Button direkt in der Meine-Anzeigen-Übersicht
-- **Edit-Page-Toolbar:** „Duplizieren“ und „Smart neu einstellen“-Buttons auf der Bearbeitungsseite (kein überlappendes Panel)
-- **Robuste Erkennung:** Multi-Strategie Seitendetection, resilient gegen Website-Änderungen
-- **Professionelles UI:** Klares, dunkles Design für das Control Panel und die Toolbar.
+- **Batch-Pause:** Nach konfigurierbarer Anzahl Anzeigen automatische Pause (Anti-Ban).
+- **Alle erneuern:** Checkbox um alle Anzeigen auf einmal neu einzustellen.
+- **Minimier-Button:** Das Control Panel lässt sich minimieren — zeigt im minimierten Zustand den nächsten Run-Termin an.
 
 ## Installation
 
 ### Voraussetzungen
-
 - Browser: Chrome, Brave, Firefox, Edge
 - [Tampermonkey](https://www.tampermonkey.net/) Browser-Extension
 
 ### Script installieren
-
 Klicke auf den Button, um das UserScript direkt in Tampermonkey zu installieren:
 
 [![Install Script](https://img.shields.io/badge/Install%20Script-Tampermonkey-blue?style=for-the-badge&logo=tampermonkey)](https://github.com/ecomcodeLab/klein-zeigen-clonebutton-auto/raw/main/kleinanzeigen-backup.user.js)
-
-Alternativ:
-
-1.  **Tampermonkey öffnen:** Klicke auf das Tampermonkey-Icon in deinem Browser und wähle "Neues Skript erstellen".
-2.  **Code einfügen:** Lösche den vorhandenen Beispielcode und füge den gesamten Inhalt der Datei `kleinanzeigen-backup.user.js` ein.
-3.  **Speichern:** Speichere das Skript (meistens `Strg+S` oder über das Dateimenü).
 
 > **Hinweis:** Automatische Updates funktionieren, sobald das Skript auf GitHub gehostet und die `@updateURL` / `@downloadURL` Header im Skript korrekt gesetzt sind.
 
 ## Verwendung
 
 ### Auto-Run (Zeitgesteuert)
-
 1. Im Panel **„Warte (Tage)“** einstellen — z. B. `7` für wöchentlichen Lauf
 2. **„Auto-Start“** Checkbox aktivieren
 3. **„Anzahl Anzeigen“** eintragen oder **„Alle“** aktivieren
@@ -48,89 +38,19 @@ Alternativ:
 5. Beim nächsten Öffnen von kleinanzeigen.de (nach Erreichen des Zieldatums) startet der Countdown automatisch.
 
 ### Manueller Start
-
 1. kleinanzeigen.de → Meine Anzeigen öffnen
 2. Im Panel auf **„▶ Starten“** klicken
 3. Ein 10-Sekunden-Countdown erscheint, den Sie bei Bedarf abbrechen können.
 
-### Direkt auf der Bearbeitungsseite
-
-- Navigiere zu einer Anzeige → „Bearbeiten“
-- Unten rechts erscheint eine Toolbar mit:
-  - **Duplizieren:** Kopie erstellen, Original bleibt
-  - **Smart neu einstellen:** Original löschen, neue Anzeige erstellen
-
-### Über Meine-Anzeigen (Inline)
-
-- Neben jedem „Bearbeiten“-Link erscheint **„Smart neu“**
-- Klick öffnet Bearbeitungsseite und führt Aktion automatisch aus
-
-## Einstellungen (Panel)
-
-| Einstellung | Beschreibung |
-|---|---|
-| Warte (Tage) | Tage bis zum nächsten Auto-Run |
-| Anzahl Anzeigen | Wie viele Anzeigen erneuert werden |
-| Alle erneuern | Alle Anzeigen auf einmal erneuern |
-| Auto-Start | Automatischen Start aktivieren/deaktivieren |
-| Warte vor Start (s) | Sekunden bis zum Auto-Start (Countdown) |
-| Batch-Größe | Anzeigen pro Batch vor Pause |
-| Batch-Pause (min) | Pausenzeit zwischen Batches in Minuten |
-| Nächster Run | Berechnetes Datum des nächsten Runs |
-| Status | Aktueller Status des Bots |
-
-## Technische Details
-
-### Berechtigungen
-
-Das Script verwendet `@grant GM_getValue` und `@grant GM_setValue` für die Speicherung der Einstellungen und `@grant none` für andere erweiterte Tampermonkey-Berechtigungen.
-
-### Unterstützte URLs
-
-- `https://www.kleinanzeigen.de/m-meine-anzeigen.html*`
-- `https://www.kleinanzeigen.de/p-anzeige-bearbeiten.html*`
-- `https://www.kleinanzeigen.de/p-anzeige-aufgeben-bestaetigung.html*`
-- `https://www.kleinanzeigen.de/*` (für Autostart-Erkennung)
-
-### Ablauf Auto-Run
-
-```
-Browser öffnen
-    → kleinanzeigen.de aufrufen
-    → Script prüft: Ist Zieldatum erreicht?
-    → Ja: 10s Countdown-Banner erscheint (mit Abbrechen-Option)
-    → Nicht abgebrochen: Navigiert zu Meine Anzeigen
-    → Anzeigen werden nacheinander neu eingestellt (mit Batch-Pausen)
-    → Nach Abschluss: Zurück zur Übersicht
-```
-
-## Fehlerbehebung
-
-**Panel erscheint nicht**
-- Prüfe ob Tampermonkey aktiviert ist
-- Seite neu laden (`F5`)
-
-**Script startet nicht automatisch**
-- „Auto-Start“ Checkbox im Panel aktivieren
-- „Einstellungen speichern“ klicken
-- Prüfe ob „Nächster Run“ ein Datum anzeigt
-- Stelle sicher, dass das aktuelle Datum das „Nächster Run“-Datum erreicht oder überschritten hat.
-
-**Anzeigen werden nicht gefunden**
-- Stelle sicher, dass du auf `m-meine-anzeigen.html` bist
-- Seite vollständig laden lassen, dann „▶ Starten“ klicken
-
-**Fehler 500 von Kleinanzeigen**
-- Batch-Größe reduzieren (z. B. auf `3`)
-- Batch-Pause erhöhen (z. B. auf `8` Minuten)
-
-**Löschung schlägt fehl**
-- Session abgelaufen — neu anmelden
-- Rate-Limiting — kurz warten und erneut versuchen
-
 ## Changelog
 
-Siehe [CHANGELOG.md](CHANGELOG.md)
+**6.9.0**
+- Architektur-Umbau auf "Copy First, Delete After" (Kein Datenverlust mehr).
+- Aggressiver automatischer Popup-Blocker (Schließt "Ohne Hochschieben weiter" Popups automatisch).
+- Non-Blocking-UI: Der Spinner stört nicht mehr den Lesefluss der Website.
+- Verbesserter Wartemechanismus auf der Bestätigungsseite für saubere Queue-Fortsetzung.
+
+Siehe `CHANGELOG.md` für ältere Versionen.
 
 ## Credits
 
@@ -139,9 +59,5 @@ Siehe [CHANGELOG.md](CHANGELOG.md)
 - **Erweiterte Version:** OldRon1977 — [GitHub](https://github.com/OldRon1977)
 - **Developer:** ecomcodeLab — [GitHub](https://github.com/ecomcodeLab)
 
-> Dieses Projekt wurde als persönliches Test- und Lernprojekt erstellt und erweitert.  
-> Teile des Codes basieren auf Code-Snippets aus den Credits sowie Vibe-Coding-Sessions.
-
 ## Lizenz
-
 MIT License — Siehe LICENSE
